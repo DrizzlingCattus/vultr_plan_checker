@@ -18,7 +18,6 @@ const serverInfoRequestOption = {
 	path:"/v1/server/list",
 	method: "GET",
 	headers: {
-		// deleted whitelist is 210.96.115.91/32
 		"API-key" : process.argv[3]
 	}
 }
@@ -81,6 +80,7 @@ const run = async () => {
 		fs.writeFileSync(resultMessageFilePath, planErrorMessage + " in request for " + err.stack);
 		exit(0);
 	});
+	
 	const second = await pushServerInfoRequest(
 		(chunck) => {
 			const serverInfo = JSON.parse(chunck);

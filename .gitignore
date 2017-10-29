@@ -1,0 +1,5 @@
+run_vultr_checker.sh
+node_modules/
+npm-debug.log
+.npmrc
+package-lock*

@@ -1,0 +1,14 @@
+{
+  "name": "vultr_price_checker",
+  "version": "1.0.0",
+  "description": "vultr price checker for terminal interface",
+  "main": "vultr_checker.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "stenrine",
+  "license": "MIT",
+  "dependencies": {
+    "nodemailer": "^4.3.1"
+  }
+}

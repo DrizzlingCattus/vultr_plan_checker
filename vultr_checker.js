@@ -1,20 +1,11 @@
 const https = require("https");
 const fs = require("fs");
 
-const nodemailer = require("nodemailer");
+const { makeEmailer } = require("./emailer.js");
+const { cloParse } = require("./command_line_parser.js");
 
 
-// const COMMAND_LINE_OPTION = [
-// 	"--api-key"
-// ];
-// const insertedCLOption = {};
-// const argv = Array.copyWithin(process.argv);
-// while(argv.length != 0) {
-// 	const str = argv.shift();
-// 	if(COMMAND_LINE_OPTION.indexOf(str) != -1) {
-// 		insertedCLOption[str] = argv.shift();
-// 	}
-// }
+const insertedCLOption = cloParse(process.argv);
 
 const planInfoRequestOption = {
 	protocol: "https:",
@@ -30,7 +21,7 @@ const serverInfoRequestOption = {
 	path:"/v1/server/list",
 	method: "GET",
 	headers: {
-		"API-key" : process.argv[3]
+		"API-key" : insertedCLOption["--api-key"]
 	}
 }
 
@@ -43,34 +34,40 @@ serverInfoRequestOption.agent = new https.Agent({
 
 
 const pushRequest = (httpsOption, dataCb, errorCb) => {
-	const request = https.request(httpsOption, (response) => {
-		response.setEncoding("utf8");
+	return new Promise((resolve, reject) => {
+		let result = null;
+		const request = https.request(httpsOption, (response) => {
+			response.setEncoding("utf8");
 
-		response.on("data", (chunck) => {
-			if(response.statusCode !== 200) {
-				return null;
-			}
-			dataCb(chunck);
+			response.on("data", (chunck) => {
+				if(response.statusCode !== 200) {
+					return null;
+				}
+				result = dataCb(chunck);
+			});
+
+			response.on("error", (err) => {
+				errorCb(err);
+			});
+
+			response.on("end", () => {
+				resolve(result);
+			});
 		});
-
-		response.on("error", (err) => {
-			errorCb(err);
-		})
+		request.end();
+		return result;
 	});
-	request.end();
-	return request;
 };
 const bindOption = (option) => {
 	return async (dataCb, errorCb) => {
-		return pushRequest(option, dataCb, errorCb);
+		return await pushRequest(option, dataCb, errorCb);
 	};
 };
 
-let plans = null;
-
 const timestamp = (new Date()).toLocaleString("ko-KR", {timeZone: "Asia/Seoul"});
 
-const resultMessageFilePath = "/home/hentleman/vultr_checker_report.txt";
+const resultMessageFilePath = insertedCLOption["--save-path"];
+//"/home/hentleman/vultr_checker_report.txt";
 
 const planErrorMessage = "plan data request is not performed well";
 const serverErrorMessage = "server info request is not performed well";
@@ -78,10 +75,49 @@ const serverErrorMessage = "server info request is not performed well";
 const pushPlanInfoRequest = bindOption(planInfoRequestOption);
 const pushServerInfoRequest = bindOption(serverInfoRequestOption);
 
+const makeVultrChecker = (vultrPlans) => {
+	const plans = vultrPlans;
+	return {
+		makeReport: (serverInfo) => {
+			let report = "";
+			const planId = serverInfo.VPSPLANID;
+			const currSpec = plans[planId].vcpu_count + " CORE," + plans[planId].name;
+
+			report += "~~~~~vultr check result~~~~~~\n";
+			try {
+				const all = fs.readFileSync(resultMessageFilePath);
+				let matchedArray = all.toString().match(/(current: )(.)+\n/);
+				const prevCurrentSpec = matchedArray.shift().slice(9).trim();
+
+				if(typeof prevCurrentSpec === "string" && prevCurrentSpec === currSpec) {
+					report += "Same!\n";
+				}else if(typeof prevCurrentSpec === "string" && prevCurrentSpec !== currSpec){
+					report += "Changed!\n";
+				}else {
+					throw "error";
+				}
+				report += ("previous: " + prevCurrentSpec + "\n");
+			}catch(err) {
+				console.log(err.stack);
+				report += "previous: " + "\n"
+			}
+			report += "current: " + currSpec + "\n";
+			report += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+			return report;
+		}
+	};
+	
+};
+
+const sendEmail = (contentData) => {
+	
+};
+
 const run = async () => {
-	const first = await pushPlanInfoRequest(
+	const plans = await pushPlanInfoRequest(
 		(chunck) => {
-			plans = JSON.parse(chunck);
+			const plans = JSON.parse(chunck);
+			return plans;
 		},
 		(err) => {
 			fs.writeFileSync(
@@ -91,47 +127,21 @@ const run = async () => {
 			exit(0);
 		}
 	);
-	first.on("error", (err) => {
-		fs.writeFileSync(
-			resultMessageFilePath, 
-			planErrorMessage + " in request for " + err.stack + "\n"
-		);
-		exit(0);
-	});
 	
-	const second = await pushServerInfoRequest(
+	const filePrintedResult = await pushServerInfoRequest(
 		(chunck) => {
-			const serverInfo = JSON.parse(chunck);
-			let result = "";
+			// [{...}, {...}, {...}, ...]
+			const serverInfoArray = Object.values(JSON.parse(chunck));
+			const checker = makeVultrChecker(plans);
+			let result = "\n";
 			
-			// unwrapping obj
-			for(let objId in serverInfo) {
-				const planId = serverInfo[objId].VPSPLANID;
-				const currSpec = plans[planId].vcpu_count + " CORE," + plans[planId].name;
-				
-				result += "object: " + objId + "\n";
-				let prevCurrentSpec = null;
-				try {
-					const all = fs.readFileSync(resultMessageFilePath);
-					const matchedArray = all.toString().match(/(current: )(.)+\n/);
-					prevCurrentSpec = matchedArray[0].slice(9).trim();
-					
-					if(prevCurrentSpec === null) {
-						throw "error";
-					}else if(typeof prevCurrentSpec === "string" && prevCurrentSpec === currSpec) {
-						result += "Same!\n";
-					}else if(typeof prevCurrentSpec === "string" && prevCurrentSpec !== currSpec){
-						result += "Changed!\n";
-					}
-					result += ("previous: " + prevCurrentSpec + "\n");
-				}catch(err) {
-					console.log(err.stack);
-					result += "previous: " + "\n"
-				}
-				result += "current: " + currSpec + "\n";
+			for(let info of serverInfoArray) {
+				result += checker.makeReport(info);
+				result += "\n";
 			}
 			console.log(result);
 			fs.writeFileSync(resultMessageFilePath, result);
+			return result;
 		},
 		(err) => {
 			fs.writeFileSync(
@@ -141,13 +151,9 @@ const run = async () => {
 			exit(0);
 		}
 	);
-	second.on("error", (err) => {
-		fs.writeFileSync(
-			resultMessageFilePath, 
-			serverErrorMessage + " in request for " + err.stack + "\n"
-		);
-		exit(0);
-	});
+	
+	// emailer.sendEmail(filePrintedResult);
+	
 	return;
 };
 run();

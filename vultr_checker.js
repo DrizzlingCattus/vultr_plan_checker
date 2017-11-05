@@ -2,7 +2,7 @@ const https = require("https");
 const fs = require("fs");
 
 const { makeEmailer } = require("./emailer.js");
-const { cloParse } = require("./command_line_parser.js");
+const { cloParse, COMMAND_LINE_OPTION } = require("./command_line_parser.js");
 
 
 const insertedCLOption = cloParse(process.argv);
@@ -21,7 +21,7 @@ const serverInfoRequestOption = {
 	path:"/v1/server/list",
 	method: "GET",
 	headers: {
-		"API-key" : insertedCLOption["--api-key"]
+		"API-key" : insertedCLOption[COMMAND_LINE_OPTION.API_KEY]
 	}
 }
 
@@ -66,7 +66,7 @@ const bindOption = (option) => {
 
 const timestamp = (new Date()).toLocaleString("ko-KR", {timeZone: "Asia/Seoul"});
 
-const resultMessageFilePath = insertedCLOption["--save-path"];
+const resultMessageFilePath = insertedCLOption[COMMAND_LINE_OPTION.SAVE_PATH];
 //"/home/hentleman/vultr_checker_report.txt";
 
 const planErrorMessage = "plan data request is not performed well";
@@ -96,7 +96,12 @@ const makeVultrChecker = (vultrPlans) => {
 		makeReport: (serverInfo) => {
 			let report = "";
 			const planId = serverInfo.VPSPLANID;
-			const currSpec = plans[planId].vcpu_count + " CORE," + plans[planId].name;
+			const currSpecPrice = plans[planId].price_per_month;
+			const currSpec = plans[planId].vcpu_count + " CORE," +
+				  plans[planId].name + "," +
+				  currSpecPrice + "$";
+			
+			console.log(plans);
 			
 			report += timestamp + "\n";
 			report += "~~~~~vultr check result~~~~~~\n";
@@ -126,11 +131,11 @@ const makeVultrChecker = (vultrPlans) => {
 
 const emailer = makeEmailer("gmail", {
 	type: "OAuth2",
-	user: insertedCLOption["--email-to"],
-	clientId: insertedCLOption["--client-id"],
-	clientSecret: insertedCLOption["--client-secret"],
-	refreshToken: insertedCLOption["--refresh-token"],
-	accessToken: insertedCLOption["--access-token"],
+	user: insertedCLOption[COMMAND_LINE_OPTION.EMAIL_TO],
+	clientId: insertedCLOption[COMMAND_LINE_OPTION.CLIENT_ID],
+	clientSecret: insertedCLOption[COMMAND_LINE_OPTION.CLIENT_SECRET],
+	refreshToken: insertedCLOption[COMMAND_LINE_OPTION.REFRESH_TOKEN],
+	accessToken: insertedCLOption[COMMAND_LINE_OPTION.ACCESS_TOKEN],
 	expires: 3600
 });
 const run = async () => {
@@ -174,7 +179,7 @@ const run = async () => {
 	
 	emailer.send({
 		from: '"vultr private server"', // sender address
-		to: insertedCLOption["--email-to"], // list of receivers
+		to: insertedCLOption[COMMAND_LINE_OPTION.EMAIL_TO], // list of receivers
 		subject: `[${timestamp}] Vultr_Checker's Report`, // Subject line
 		text: filePrintedResult, // plain text body
 		//html: '<b>Hello world?</b>' // html body

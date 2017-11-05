@@ -1,7 +1,7 @@
 
 const COMMAND_LINE_OPTION = {
 	API_KEY: "--api-key",
-	HOST: "--email-to",
+	EMAIL_TO: "--email-to",
 	SAVE_PATH: "--save-path",
 	ACCESS_TOKEN: "--access-token",
 	REFRESH_TOKEN: "--refresh-token",
@@ -41,4 +41,4 @@ const cloParse = (inputArgv) => {
 };
 
 
-module.exports = { cloParse };
+module.exports = { COMMAND_LINE_OPTION, cloParse };

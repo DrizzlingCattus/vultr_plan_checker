@@ -1,8 +1,12 @@
 
 const COMMAND_LINE_OPTION = {
 	API_KEY: "--api-key",
-	HOST: "--email",
-	SAVE_PATH: "--save-path"
+	HOST: "--email-to",
+	SAVE_PATH: "--save-path",
+	ACCESS_TOKEN: "--access-token",
+	REFRESH_TOKEN: "--refresh-token",
+	CLIENT_ID: "--client-id",
+	CLIENT_SECRET: "--client-secret"
 };
 const INVAILD_OPTION_VALUE_INSERTED_MESSAGE = (option, value) => {
 	return `There is unexpected command line option form.\n option :: ${option}\nvalue :: ${value}`;

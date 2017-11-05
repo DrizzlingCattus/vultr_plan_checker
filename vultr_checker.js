@@ -60,7 +60,7 @@ const pushRequest = (httpsOption, dataCb, errorCb) => {
 };
 const bindOption = (option) => {
 	return async (dataCb, errorCb) => {
-		return await pushRequest(option, dataCb, errorCb);
+		return pushRequest(option, dataCb, errorCb);
 	};
 };
 
@@ -75,6 +75,21 @@ const serverErrorMessage = "server info request is not performed well";
 const pushPlanInfoRequest = bindOption(planInfoRequestOption);
 const pushServerInfoRequest = bindOption(serverInfoRequestOption);
 
+// TODO :: 생각해보고... 저기 산개해있는 문자열들 정리할지... 리펙토링 결정.
+// const makeReportFormat = () => {
+// 	let headline = "~~~~~vultr check result~~~~~~";
+// 	let body = "";
+// 	let endline = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
+// 	return {
+// 		writeBody: () => {
+			
+// 		},
+// 		appendBody: () => {
+			
+// 		}
+// 	};
+// };
+
 const makeVultrChecker = (vultrPlans) => {
 	const plans = vultrPlans;
 	return {
@@ -82,7 +97,8 @@ const makeVultrChecker = (vultrPlans) => {
 			let report = "";
 			const planId = serverInfo.VPSPLANID;
 			const currSpec = plans[planId].vcpu_count + " CORE," + plans[planId].name;
-
+			
+			report += timestamp + "\n";
 			report += "~~~~~vultr check result~~~~~~\n";
 			try {
 				const all = fs.readFileSync(resultMessageFilePath);
@@ -106,13 +122,17 @@ const makeVultrChecker = (vultrPlans) => {
 			return report;
 		}
 	};
-	
 };
 
-const sendEmail = (contentData) => {
-	
-};
-
+const emailer = makeEmailer("gmail", {
+	type: "OAuth2",
+	user: insertedCLOption["--email-to"],
+	clientId: insertedCLOption["--client-id"],
+	clientSecret: insertedCLOption["--client-secret"],
+	refreshToken: insertedCLOption["--refresh-token"],
+	accessToken: insertedCLOption["--access-token"],
+	expires: 3600
+});
 const run = async () => {
 	const plans = await pushPlanInfoRequest(
 		(chunck) => {
@@ -152,7 +172,13 @@ const run = async () => {
 		}
 	);
 	
-	// emailer.sendEmail(filePrintedResult);
+	emailer.send({
+		from: '"vultr private server"', // sender address
+		to: insertedCLOption["--email-to"], // list of receivers
+		subject: `[${timestamp}] Vultr_Checker's Report`, // Subject line
+		text: filePrintedResult, // plain text body
+		//html: '<b>Hello world?</b>' // html body
+	});
 	
 	return;
 };

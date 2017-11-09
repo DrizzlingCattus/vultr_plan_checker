@@ -1,3 +1,4 @@
+"use strict";
 
 const COMMAND_LINE_OPTION = {
 	API_KEY: "--api-key",

@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "stenrine",
+  "author": "DrizzlingCattus",
   "license": "MIT",
   "dependencies": {
     "nodemailer": "^4.3.1"

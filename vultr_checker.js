@@ -1,8 +1,12 @@
+"use strict";
+
 const https = require("https");
 const fs = require("fs");
 
 const { makeEmailer } = require("./emailer.js");
 const { cloParse, COMMAND_LINE_OPTION } = require("./command_line_parser.js");
+const util = require("./util.js");
+const { makeReportWritter } = require("./report_writter.js");
 
 
 const insertedCLOption = cloParse(process.argv);
@@ -67,7 +71,6 @@ const bindOption = (option) => {
 const timestamp = (new Date()).toLocaleString("ko-KR", {timeZone: "Asia/Seoul"});
 
 const resultMessageFilePath = insertedCLOption[COMMAND_LINE_OPTION.SAVE_PATH];
-//"/home/hentleman/vultr_checker_report.txt";
 
 const planErrorMessage = "plan data request is not performed well";
 const serverErrorMessage = "server info request is not performed well";
@@ -75,56 +78,40 @@ const serverErrorMessage = "server info request is not performed well";
 const pushPlanInfoRequest = bindOption(planInfoRequestOption);
 const pushServerInfoRequest = bindOption(serverInfoRequestOption);
 
-// TODO :: 생각해보고... 저기 산개해있는 문자열들 정리할지... 리펙토링 결정.
-// const makeReportFormat = () => {
-// 	let headline = "~~~~~vultr check result~~~~~~";
-// 	let body = "";
-// 	let endline = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
-// 	return {
-// 		writeBody: () => {
-			
-// 		},
-// 		appendBody: () => {
-			
-// 		}
-// 	};
-// };
+
+const reporter = makeReportWritter();
 
 const makeVultrChecker = (vultrPlans) => {
 	const plans = vultrPlans;
 	return {
 		makeReport: (serverInfo) => {
-			let report = "";
 			const planId = serverInfo.VPSPLANID;
 			const currSpecPrice = plans[planId].price_per_month;
 			const currSpec = plans[planId].vcpu_count + " CORE," +
 				  plans[planId].name + "," +
 				  currSpecPrice + "$";
 			
-			console.log(plans);
-			
-			report += timestamp + "\n";
-			report += "~~~~~vultr check result~~~~~~\n";
+			reporter.writeToHeadLine(timestamp);
+			reporter.writeToHeadLine("##vultr check result##");
 			try {
 				const all = fs.readFileSync(resultMessageFilePath);
 				let matchedArray = all.toString().match(/(current: )(.)+\n/);
 				const prevCurrentSpec = matchedArray.shift().slice(9).trim();
 
-				if(typeof prevCurrentSpec === "string" && prevCurrentSpec === currSpec) {
-					report += "Same!\n";
-				}else if(typeof prevCurrentSpec === "string" && prevCurrentSpec !== currSpec){
-					report += "Changed!\n";
+				if(util.isString(prevCurrentSpec) && prevCurrentSpec === currSpec) {
+					reporter.writeToBottomLine("Same!");
+				}else if(util.isString(prevCurrentSpec) && prevCurrentSpec !== currSpec){
+					reporter.writeToBottomLine("Changed!")
 				}else {
 					throw "error";
 				}
-				report += ("previous: " + prevCurrentSpec + "\n");
+				reporter.writeToBody(`previous: ${prevCurrentSpec}`);
 			}catch(err) {
 				console.log(err.stack);
-				report += "previous: " + "\n"
+				reporter.writeToBody("previous: ");
 			}
-			report += "current: " + currSpec + "\n";
-			report += "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-			return report;
+			reporter.writeToBody(`current: ${currSpec}`);
+			return reporter.getReport();
 		}
 	};
 };
@@ -182,7 +169,6 @@ const run = async () => {
 		to: insertedCLOption[COMMAND_LINE_OPTION.EMAIL_TO], // list of receivers
 		subject: `[${timestamp}] Vultr_Checker's Report`, // Subject line
 		text: filePrintedResult, // plain text body
-		//html: '<b>Hello world?</b>' // html body
 	});
 	
 	return;

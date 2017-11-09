@@ -7,6 +7,11 @@ start in 17.10.29
 
 - 원하는 매일(내 매일)로 해당 리포트를 보내준다.
 
+추가할 기능:
+
+- crontab에 자동으로 쉘스크립트 등록
+
+- nodejs 버전을 확인하고 /bin/node가 없으면 which node에 해당하는 실행파일을 심볼릭링크로 뜬다.
 
 ## runScript.sh
 
